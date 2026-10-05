@@ -123,11 +123,11 @@ The `free` command shows memory in lines. We extract the `Mem` line, divide used
 ### Disk Usage
 ```bash
 get_disk() {
-  df / | tail -1 | awk '{print $5}' | cut -d'%' -f1
+  df -P / | tail -1 | awk '{print $5+0}'
 }
 ```
 
-The `df /` command shows filesystem info. We take the last line (the actual filesystem), extract the usage percentage column (`$5`), and strip the `%` sign.
+The `df -P /` command shows filesystem info in POSIX format (one line per filesystem, no wrapping). We take the last line (the actual filesystem), extract the usage percentage column (`$5`), and add 0 to convert the string (e.g., "75%") to a pure number.
 
 ## Part 6: Output Formatting
 

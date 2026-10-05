@@ -118,7 +118,7 @@ get_mem() {
 
 # Get disk usage percentage (root filesystem)
 get_disk() {
-  df / | tail -1 | awk '{print $5}' | cut -d'%' -f1
+  df -P / | tail -1 | awk '{print $5+0}'
 }
 
 # Format output line
