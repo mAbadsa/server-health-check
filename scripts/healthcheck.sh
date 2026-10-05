@@ -10,51 +10,70 @@ MEM_CRIT=90
 DISK_WARN=80
 DISK_CRIT=90
 
+# Remote host and mode flag
+HOST=""
+REMOTE_MODE=0
+
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [options]
 
 Options:
-  --cpu-warn N       CPU warning threshold (0-100, default: 70)
-  --cpu-crit N       CPU critical threshold (0-100, default: 90)
-  --mem-warn N       Memory warning threshold (0-100, default: 70)
-  --mem-crit N       Memory critical threshold (0-100, default: 90)
-  --disk-warn N      Disk warning threshold (0-100, default: 80)
-  --disk-crit N      Disk critical threshold (0-100, default: 90)
-  -h, --help         Show this help message
+  --host [user@]IP       Check remote host via SSH (key auth required)
+  --cpu-warn N           CPU warning threshold (0-100, default: 70)
+  --cpu-crit N           CPU critical threshold (0-100, default: 90)
+  --mem-warn N           Memory warning threshold (0-100, default: 70)
+  --mem-crit N           Memory critical threshold (0-100, default: 90)
+  --disk-warn N          Disk warning threshold (0-100, default: 80)
+  --disk-crit N          Disk critical threshold (0-100, default: 90)
+  -h, --help             Show this help message
 
 Examples:
   $(basename "$0")
-  $(basename "$0") --cpu-warn 80 --cpu-crit 95
-  $(basename "$0") --mem-warn 60 --mem-crit 85
+  $(basename "$0") --host 192.168.1.10
+  $(basename "$0") --host app@server.example.com --cpu-warn 80 --cpu-crit 95
 EOF
 }
+
+# Collect flags to forward to remote
+FWD=()
 
 # Parse command-line flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --host)
+      REMOTE_MODE=1
+      HOST="$2"
+      shift 2
+      ;;
     --cpu-warn)
       CPU_WARN="$2"
+      FWD+=("--cpu-warn" "$2")
       shift 2
       ;;
     --cpu-crit)
       CPU_CRIT="$2"
+      FWD+=("--cpu-crit" "$2")
       shift 2
       ;;
     --mem-warn)
       MEM_WARN="$2"
+      FWD+=("--mem-warn" "$2")
       shift 2
       ;;
     --mem-crit)
       MEM_CRIT="$2"
+      FWD+=("--mem-crit" "$2")
       shift 2
       ;;
     --disk-warn)
       DISK_WARN="$2"
+      FWD+=("--disk-warn" "$2")
       shift 2
       ;;
     --disk-crit)
       DISK_CRIT="$2"
+      FWD+=("--disk-crit" "$2")
       shift 2
       ;;
     -h|--help)
@@ -68,6 +87,41 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# Validate and run remote check
+validate_host() {
+  local host="$1"
+
+  if [[ -z "$host" ]]; then
+    echo "Error: --host requires a value" >&2
+    exit 2
+  fi
+
+  if [[ "$host" =~ ^- ]]; then
+    echo "Error: host cannot start with '-' (suspected option injection)" >&2
+    exit 2
+  fi
+
+  if ! [[ "$host" =~ ^[A-Za-z0-9._@:-]+$ ]]; then
+    echo "Error: invalid host format: $host" >&2
+    exit 2
+  fi
+}
+
+run_remote() {
+  local host="$1"
+  shift
+  local -a fwd_args=("$@")
+
+  validate_host "$host"
+
+  echo "Host: $host"
+
+  if ! HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s "${fwd_args[@]}" < "$0"; then
+    echo "Error: cannot reach $host via SSH" >&2
+    exit 2
+  fi
+}
 
 # Validate thresholds
 validate_threshold() {
@@ -145,5 +199,11 @@ main() {
   format_line "$disk_status" "Disk Usage" "${disk}%"
 }
 
-# Guard so test file can source this script
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && main
+# Guard so test file can source this script (HEALTHCHECK_REMOTE set by run_remote)
+if [[ -z "${HEALTHCHECK_REMOTE:-}" ]]; then
+  if (( REMOTE_MODE )); then
+    run_remote "$HOST" "${FWD[@]}"
+  else
+    main
+  fi
+fi

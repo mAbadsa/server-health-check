@@ -14,9 +14,10 @@ This project also doubles as a tutorial — the `docs/tutorial.md` walks through
 
 ## Features
 
-- ✅ CPU, memory, and disk usage checks
+- ✅ CPU, memory, and disk usage checks (local and remote via SSH)
 - ✅ Human-readable terminal output
 - ✅ Configurable warning/critical thresholds (CLI flags)
+- ✅ Remote server checks by IP or hostname
 - 🚧 JSON output mode (for piping into other tools)
 - 🚧 Nagios-style exit codes (0 = OK, 1 = warning, 2 = critical)
 - 🚧 Alerting via webhook (Slack/Discord)
@@ -48,6 +49,7 @@ $ ./scripts/healthcheck.sh
 ./scripts/healthcheck.sh [options]
 
 Options:
+  --host [user@]IP Check remote host via SSH (key auth required)
   --cpu-warn N     CPU warning threshold (0-100, default: 70)
   --cpu-crit N     CPU critical threshold (0-100, default: 90)
   --mem-warn N     Memory warning threshold (0-100, default: 70)
@@ -56,10 +58,14 @@ Options:
   --disk-crit N    Disk critical threshold (0-100, default: 90)
   -h, --help       Show help message
 
-Examples:
+Local Examples:
   ./scripts/healthcheck.sh
   ./scripts/healthcheck.sh --cpu-warn 80 --cpu-crit 95
   ./scripts/healthcheck.sh --mem-warn 60 --mem-crit 85
+
+Remote Examples:
+  ./scripts/healthcheck.sh --host 192.168.1.10
+  ./scripts/healthcheck.sh --host app@server.example.com --cpu-warn 80
 ```
 
 ## Tutorial
@@ -69,7 +75,7 @@ If you're learning Bash or want to understand how this script works under the ho
 ## Roadmap
 
 - [x] Configurable thresholds (CLI flags)
-- [ ] Remote server health check via SSH (IP/hostname)
+- [x] Remote server health check via SSH (IP/hostname)
 - [ ] JSON output mode
 - [ ] Nagios-style exit codes
 - [ ] Webhook alerting (Slack/Discord)

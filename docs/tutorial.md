@@ -191,6 +191,45 @@ The last line is a guard: `[[ "${BASH_SOURCE[0]}" == "$0" ]]` checks if this scr
 5. `status_for 72 60 85` returns `WARN` (72 ≥ 60, but < 85)
 6. Script prints: `[WARN]  Memory Usage   : 72%`
 
+## Part 8: Remote Execution via SSH
+
+The script can run on a remote host via SSH:
+
+```bash
+./scripts/healthcheck.sh --host 192.168.1.10
+./scripts/healthcheck.sh --host app@server.example.com --cpu-warn 80
+```
+
+### How Remote Mode Works
+
+1. The `--host` flag sets `REMOTE_MODE=1` and `HOST="..."` during flag parsing.
+2. The forward array `FWD=()` collects all threshold flags to send to the remote.
+3. At the end, the guard checks: if `REMOTE_MODE` is set, call `run_remote()` instead of `main()`.
+4. `run_remote()` validates the host (rejects option injection like `-oProxyCommand=...`).
+5. It runs: `ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s "${FWD[@]}" < "$0"`
+   - `BatchMode=yes` = key-only auth, never prompt for password (safe in cron)
+   - `ConnectTimeout=5` = give up after 5 seconds if unreachable
+   - `bash -s` = read the script from stdin
+   - `"${FWD[@]}"` = forward the threshold flags as arguments
+   - `< "$0"` = pipe the script itself to the remote bash
+
+### Why Pipe the Script?
+
+This avoids having to install the script on every remote server. Just run it once with `--host`, and it uses SSH to send the script + flags to the remote bash. The remote side parses flags and collects metrics just like the local version.
+
+### SSH Requirements
+
+- Remote host must have bash and `top`/`free`/`df` (standard on Linux)
+- SSH key auth required (no password prompts; set `~/.ssh/config` for port/identity)
+- Error handling: if SSH fails, the script exits with code 2
+
+### Validation
+
+The script validates the host to prevent injection attacks:
+- Must match `^[A-Za-z0-9._@:-]+$` (alphanumeric, dots, underscores, @, hyphens, colons)
+- Cannot start with `-` (blocks `-oProxyCommand=...` attacks)
+- Must not be empty
+
 ## Testing
 
 The `tests/test_healthcheck.sh` file contains simple assertions:

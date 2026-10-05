@@ -5,6 +5,36 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$SCRIPT_DIR/scripts/healthcheck.sh"
+TEST_TMPDIR=$(mktemp -d)
+trap "rm -rf '$TEST_TMPDIR'" EXIT
+
+# Create stub ssh command that prints args and cats stdin
+mkdir -p "$TEST_TMPDIR/bin"
+cat > "$TEST_TMPDIR/bin/ssh" <<'STUB'
+#!/bin/bash
+# Stub ssh for testing: ssh -o opt val -o opt val HOST bash -s args...
+if [[ "$1" == "-o" ]] && [[ "$2" == "BatchMode=yes" ]]; then
+  shift 4  # Skip -o BatchMode=yes -o ConnectTimeout=5
+  host="$1"
+  shift    # Skip HOST
+
+  # Simulate failure if host is unreachable
+  if [[ "$host" == "10.255.255.1" ]]; then
+    exit 255
+  fi
+
+  # Run: bash -s args... < stdin
+  echo "Host: $host"
+  "$@"
+else
+  echo "Unexpected ssh args: $@" >&2
+  exit 1
+fi
+STUB
+chmod +x "$TEST_TMPDIR/bin/ssh"
+
+# Prepend stub directory to PATH so our ssh is used
+export PATH="$TEST_TMPDIR/bin:$PATH"
 
 # Source the script to test helper functions
 source "$SCRIPT"
@@ -73,6 +103,30 @@ assert_exit 2 "$SCRIPT --cpu-crit 101" "invalid crit value (>100) exits 2"
 # warn >= crit is invalid
 assert_exit 2 "$SCRIPT --cpu-warn 90 --cpu-crit 90" "warn >= crit exits 2"
 assert_exit 2 "$SCRIPT --cpu-warn 95 --cpu-crit 90" "warn > crit exits 2"
+
+echo ""
+echo "=== Testing remote host validation ==="
+
+# Test valid host
+assert_exit 0 "$SCRIPT --host 192.168.1.10" "valid IP exits 0"
+assert_exit 0 "$SCRIPT --host user@server.com" "valid user@host exits 0"
+assert_exit 0 "$SCRIPT --host localhost" "localhost exits 0"
+
+# Test invalid host (starts with -)
+assert_exit 2 "$SCRIPT --host -oProxyCommand=id" "option injection blocked, exits 2"
+
+# Test invalid host (empty)
+assert_exit 2 "$SCRIPT --host ''" "empty host exits 2"
+
+# Test invalid host (bad characters)
+assert_exit 2 "$SCRIPT --host 'server; whoami'" "semicolon blocked, exits 2"
+
+# Test unreachable host (stub ssh exits 255)
+assert_exit 2 "$SCRIPT --host 10.255.255.1" "unreachable host exits 2"
+
+# Test forwarding thresholds to remote
+output=$($SCRIPT --host localhost --cpu-warn 50 --cpu-crit 80 2>&1 | head -1)
+assert "Host: localhost" "$output" "remote mode prints host header"
 
 echo ""
 echo "=== Test Summary ==="

@@ -43,8 +43,8 @@ A lightweight Bash CLI for server health monitoring (CPU, memory, disk, load). D
 ## Roadmap Priorities
 
 Ordered loosely by value/effort:
-1. Configurable thresholds (CLI flags or config file)
-2. Remote server health check via SSH (IP/hostname)
+1. ✅ Configurable thresholds (CLI flags)
+2. ✅ Remote server health check via SSH (IP/hostname)
 3. JSON output mode
 4. Basic test suite (bats framework already present)
 5. Nagios-style exit codes
