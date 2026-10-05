@@ -105,11 +105,13 @@ This helper compares a metric value against thresholds and returns the status. T
 ### CPU Usage
 ```bash
 get_cpu() {
-  top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1 | awk '{printf "%.0f\n", $1}'
+  top -bn1 | grep "Cpu(s)" | awk '{printf "%.0f\n", $2}'
 }
 ```
 
-This reads the `top` command's first snapshot (`-bn1`), extracts the CPU usage line, and parses out the numeric percentage. The final `awk` rounds it to a whole number.
+This reads the `top` command's first snapshot (`-bn1`), extracts the CPU usage line, and parses out the user CPU percentage from field `$2` (e.g., "12.5%us,"). The `awk` expression coerces the string to a number (stops at the `%` sign) and rounds it to a whole number.
+
+*Note: This captures user CPU only. To measure total CPU (including system, IO-wait, etc.), you'd use `vmstat 1 2 | tail -1 | awk '{print 100 - $15}'`, but this adds a 2-second latency.*
 
 ### Memory Usage
 ```bash

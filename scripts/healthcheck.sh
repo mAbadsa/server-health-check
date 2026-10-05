@@ -106,9 +106,9 @@ status_for() {
   fi
 }
 
-# Get CPU usage percentage
+# Get CPU usage percentage (user CPU only; total CPU would use vmstat but adds 2s latency)
 get_cpu() {
-  top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1 | awk '{printf "%.0f\n", $1}'
+  top -bn1 | grep "Cpu(s)" | awk '{printf "%.0f\n", $2}'
 }
 
 # Get memory usage percentage
