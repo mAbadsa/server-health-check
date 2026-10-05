@@ -44,12 +44,13 @@ A lightweight Bash CLI for server health monitoring (CPU, memory, disk, load). D
 
 Ordered loosely by value/effort:
 1. Configurable thresholds (CLI flags or config file)
-2. JSON output mode
-3. Basic test suite (bats framework already present)
-4. Nagios-style exit codes
-5. Slack/Discord webhook alerting
-6. GitHub Actions (ShellCheck CI)
-7. systemd timer example
+2. Remote server health check via SSH (IP/hostname)
+3. JSON output mode
+4. Basic test suite (bats framework already present)
+5. Nagios-style exit codes
+6. Slack/Discord webhook alerting
+7. GitHub Actions (ShellCheck CI)
+8. systemd timer example
 
 ---
 

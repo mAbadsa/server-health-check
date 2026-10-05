@@ -60,6 +60,7 @@ If you're learning Bash or want to understand how this script works under the ho
 ## Roadmap
 
 - [ ] Configurable thresholds via config file / CLI flags
+- [ ] Remote server health check via SSH (IP/hostname)
 - [ ] JSON output mode
 - [ ] Nagios-style exit codes
 - [ ] Webhook alerting (Slack/Discord)
