@@ -16,7 +16,7 @@ This project also doubles as a tutorial — the `docs/tutorial.md` walks through
 
 - ✅ CPU, memory, and disk usage checks
 - ✅ Human-readable terminal output
-- 🚧 Configurable warning/critical thresholds
+- ✅ Configurable warning/critical thresholds (CLI flags)
 - 🚧 JSON output mode (for piping into other tools)
 - 🚧 Nagios-style exit codes (0 = OK, 1 = warning, 2 = critical)
 - 🚧 Alerting via webhook (Slack/Discord)
@@ -38,8 +38,8 @@ chmod +x scripts/healthcheck.sh
 ```
 $ ./scripts/healthcheck.sh
 [ OK ]  CPU Usage      : 12%
-[ OK ]  Memory Usage   : 43% (3.4G / 7.8G)
-[WARN]  Disk Usage     : 81% (/dev/sda1)
+[WARN]  Memory Usage   : 75%
+[CRIT]  Disk Usage     : 92%
 ```
 
 ## Usage
@@ -48,10 +48,19 @@ $ ./scripts/healthcheck.sh
 ./scripts/healthcheck.sh [options]
 
 Options:
-  -h, --help      Show help message
-```
+  --cpu-warn N     CPU warning threshold (0-100, default: 70)
+  --cpu-crit N     CPU critical threshold (0-100, default: 90)
+  --mem-warn N     Memory warning threshold (0-100, default: 70)
+  --mem-crit N     Memory critical threshold (0-100, default: 90)
+  --disk-warn N    Disk warning threshold (0-100, default: 80)
+  --disk-crit N    Disk critical threshold (0-100, default: 90)
+  -h, --help       Show help message
 
-*(More flags — thresholds, JSON output, alerting — will be documented here as they're implemented.)*
+Examples:
+  ./scripts/healthcheck.sh
+  ./scripts/healthcheck.sh --cpu-warn 80 --cpu-crit 95
+  ./scripts/healthcheck.sh --mem-warn 60 --mem-crit 85
+```
 
 ## Tutorial
 
@@ -59,7 +68,7 @@ If you're learning Bash or want to understand how this script works under the ho
 
 ## Roadmap
 
-- [ ] Configurable thresholds via config file / CLI flags
+- [x] Configurable thresholds (CLI flags)
 - [ ] Remote server health check via SSH (IP/hostname)
 - [ ] JSON output mode
 - [ ] Nagios-style exit codes
