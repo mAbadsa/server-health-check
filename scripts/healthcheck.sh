@@ -123,7 +123,9 @@ run_remote() {
 
   validate_host "$host"
 
-  echo "Host: $host"
+  if (( ! JSON_MODE )); then
+    echo "Host: $host"
+  fi
 
   if ! HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s -- "${fwd_args[@]}" < "$0"; then
     echo "Error: cannot reach $host via SSH" >&2
