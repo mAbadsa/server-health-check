@@ -120,6 +120,7 @@ run_remote() {
   local host="$1"
   shift
   local -a fwd_args=("$@")
+  local ssh_exit
 
   validate_host "$host"
 
@@ -127,10 +128,16 @@ run_remote() {
     echo "Host: $host"
   fi
 
-  if ! HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s -- "${fwd_args[@]}" < "$0"; then
+  HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s -- "${fwd_args[@]}" < "$0"
+  ssh_exit=$?
+
+  # Exit codes 0-2 are valid (Nagios), >2 means SSH error
+  if (( ssh_exit > 2 )); then
     echo "Error: cannot reach $host via SSH" >&2
     exit 2
   fi
+
+  exit "$ssh_exit"
 }
 
 # Validate thresholds
@@ -200,10 +207,27 @@ output_json() {
     "$cpu" "$cpu_status" "$mem" "$mem_status" "$disk" "$disk_status"
 }
 
+# Get exit code based on statuses (Nagios convention)
+# 0 = OK, 1 = WARNING, 2 = CRITICAL, 3 = UNKNOWN
+get_exit_code() {
+  local -a statuses=("$@")
+
+  for status in "${statuses[@]}"; do
+    [[ "$status" == "CRIT" ]] && echo 2 && return
+  done
+
+  for status in "${statuses[@]}"; do
+    [[ "$status" == "WARN" ]] && echo 1 && return
+  done
+
+  echo 0
+}
+
 # Main
 main() {
   local cpu mem disk
   local cpu_status mem_status disk_status
+  local exit_code
 
   cpu=$(get_cpu)
   mem=$(get_mem)
@@ -220,6 +244,9 @@ main() {
     format_line "$mem_status" "Memory Usage" "${mem}%"
     format_line "$disk_status" "Disk Usage" "${disk}%"
   fi
+
+  exit_code=$(get_exit_code "$cpu_status" "$mem_status" "$disk_status")
+  return "$exit_code"
 }
 
 # Guard so test file can source this script (HEALTHCHECK_REMOTE set by run_remote)
@@ -228,5 +255,6 @@ if [[ -z "${HEALTHCHECK_REMOTE:-}" ]]; then
     run_remote "$HOST" "${FWD[@]}"
   else
     main
+    exit $?
   fi
 fi
