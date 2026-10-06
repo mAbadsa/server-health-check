@@ -10,9 +10,10 @@ MEM_CRIT=90
 DISK_WARN=80
 DISK_CRIT=90
 
-# Remote host and mode flag
+# Remote host and mode flags
 HOST=""
 REMOTE_MODE=0
+JSON_MODE=0
 
 usage() {
   cat <<EOF
@@ -26,12 +27,14 @@ Options:
   --mem-crit N           Memory critical threshold (0-100, default: 90)
   --disk-warn N          Disk warning threshold (0-100, default: 80)
   --disk-crit N          Disk critical threshold (0-100, default: 90)
+  --json                 Output as JSON
   -h, --help             Show this help message
 
 Examples:
   $(basename "$0")
+  $(basename "$0") --json
   $(basename "$0") --host 192.168.1.10
-  $(basename "$0") --host app@server.example.com --cpu-warn 80 --cpu-crit 95
+  $(basename "$0") --host app@server.example.com --cpu-warn 80 --cpu-crit 95 --json
 EOF
 }
 
@@ -76,6 +79,11 @@ while [[ $# -gt 0 ]]; do
       FWD+=("--disk-crit" "$2")
       shift 2
       ;;
+    --json)
+      JSON_MODE=1
+      FWD+=("--json")
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -117,7 +125,7 @@ run_remote() {
 
   echo "Host: $host"
 
-  if ! HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s "${fwd_args[@]}" < "$0"; then
+  if ! HEALTHCHECK_REMOTE=1 ssh -o BatchMode=yes -o ConnectTimeout=5 "$host" bash -s -- "${fwd_args[@]}" < "$0"; then
     echo "Error: cannot reach $host via SSH" >&2
     exit 2
   fi
@@ -181,6 +189,15 @@ format_line() {
   printf "[%-4s]  %-14s: %s%s\n" "$status" "$label" "$value" "$extra"
 }
 
+# Output JSON format
+output_json() {
+  local cpu="$1" mem="$2" disk="$3"
+  local cpu_status="$4" mem_status="$5" disk_status="$6"
+
+  printf '{"cpu": %d, "cpu_status": "%s", "memory": %d, "memory_status": "%s", "disk": %d, "disk_status": "%s"}\n' \
+    "$cpu" "$cpu_status" "$mem" "$mem_status" "$disk" "$disk_status"
+}
+
 # Main
 main() {
   local cpu mem disk
@@ -194,9 +211,13 @@ main() {
   mem_status=$(status_for "$mem" "$MEM_WARN" "$MEM_CRIT")
   disk_status=$(status_for "$disk" "$DISK_WARN" "$DISK_CRIT")
 
-  format_line "$cpu_status" "CPU Usage" "${cpu}%"
-  format_line "$mem_status" "Memory Usage" "${mem}%"
-  format_line "$disk_status" "Disk Usage" "${disk}%"
+  if (( JSON_MODE )); then
+    output_json "$cpu" "$mem" "$disk" "$cpu_status" "$mem_status" "$disk_status"
+  else
+    format_line "$cpu_status" "CPU Usage" "${cpu}%"
+    format_line "$mem_status" "Memory Usage" "${mem}%"
+    format_line "$disk_status" "Disk Usage" "${disk}%"
+  fi
 }
 
 # Guard so test file can source this script (HEALTHCHECK_REMOTE set by run_remote)
