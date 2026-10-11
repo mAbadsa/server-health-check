@@ -6,7 +6,7 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$SCRIPT_DIR/scripts/healthcheck.sh"
 TEST_TMPDIR=$(mktemp -d)
-trap "rm -rf '$TEST_TMPDIR'" EXIT
+trap 'rm -rf "$TEST_TMPDIR"' EXIT
 
 # Create stub ssh command that prints args and cats stdin
 mkdir -p "$TEST_TMPDIR/bin"
@@ -37,6 +37,7 @@ chmod +x "$TEST_TMPDIR/bin/ssh"
 export PATH="$TEST_TMPDIR/bin:$PATH"
 
 # Source the script to test helper functions
+# shellcheck source=scripts/healthcheck.sh
 source "$SCRIPT"
 
 # Test counter
