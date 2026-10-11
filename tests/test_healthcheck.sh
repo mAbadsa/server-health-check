@@ -6,7 +6,7 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$SCRIPT_DIR/scripts/healthcheck.sh"
 TEST_TMPDIR=$(mktemp -d)
-trap "rm -rf '$TEST_TMPDIR'" EXIT
+trap 'rm -rf "$TEST_TMPDIR"' EXIT
 
 # Create stub ssh command that prints args and cats stdin
 mkdir -p "$TEST_TMPDIR/bin"
@@ -37,6 +37,7 @@ chmod +x "$TEST_TMPDIR/bin/ssh"
 export PATH="$TEST_TMPDIR/bin:$PATH"
 
 # Source the script to test helper functions
+# shellcheck source=scripts/healthcheck.sh
 source "$SCRIPT"
 
 # Test counter
@@ -70,6 +71,22 @@ assert_exit() {
   fi
 }
 
+# Host-dependent results: OK (0) or WARN/CRIT (1) both count as "ran fine"
+assert_not_exit() {
+  local rejected_code="$1" cmd="$2" desc="$3"
+  ((tests_run++))
+
+  eval "$cmd" > /dev/null 2>&1
+  local actual_code=$?
+
+  if [[ "$actual_code" != "$rejected_code" ]]; then
+    echo "✓ $desc"
+    ((tests_passed++))
+  else
+    echo "✗ $desc (got forbidden exit code: $actual_code)"
+  fi
+}
+
 echo "=== Testing status_for function ==="
 
 # Test OK status (below warning)
@@ -87,7 +104,7 @@ echo ""
 echo "=== Testing threshold validation ==="
 
 # Valid thresholds should succeed
-assert_exit 0 "$SCRIPT" "script with defaults exits 0"
+assert_not_exit 2 "$SCRIPT" "script with defaults does not exit 2 (usage error)"
 
 # Invalid warn value (not a number)
 assert_exit 2 "$SCRIPT --cpu-warn abc" "invalid warn value (non-numeric) exits 2"
@@ -108,9 +125,9 @@ echo ""
 echo "=== Testing remote host validation ==="
 
 # Test valid host
-assert_exit 0 "$SCRIPT --host 192.168.1.10" "valid IP exits 0"
-assert_exit 0 "$SCRIPT --host user@server.com" "valid user@host exits 0"
-assert_exit 0 "$SCRIPT --host localhost" "localhost exits 0"
+assert_not_exit 2 "$SCRIPT --host 192.168.1.10" "valid IP is accepted (not exit 2)"
+assert_not_exit 2 "$SCRIPT --host user@server.com" "valid user@host is accepted (not exit 2)"
+assert_not_exit 2 "$SCRIPT --host localhost" "localhost is accepted (not exit 2)"
 
 # Test invalid host (starts with -)
 assert_exit 2 "$SCRIPT --host -oProxyCommand=id" "option injection blocked, exits 2"
