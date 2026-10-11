@@ -249,8 +249,9 @@ main() {
   return "$exit_code"
 }
 
-# Guard so test file can source this script (HEALTHCHECK_REMOTE set by run_remote)
-if [[ -z "${HEALTHCHECK_REMOTE:-}" ]]; then
+# Run only when executed, not when sourced by the test file.
+# Remote runs via `bash -s` have no BASH_SOURCE, so it falls back to $0 and still runs.
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
   if (( REMOTE_MODE )); then
     run_remote "$HOST" "${FWD[@]}"
   else
