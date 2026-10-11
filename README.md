@@ -76,8 +76,8 @@ If you're learning Bash or want to understand how this script works under the ho
 
 - [x] Configurable thresholds (CLI flags)
 - [x] Remote server health check via SSH (IP/hostname)
-- [ ] JSON output mode
-- [ ] Nagios-style exit codes
+- [x] JSON output mode
+- [x] Nagios-style exit codes
 - [ ] Webhook alerting (Slack/Discord)
 - [ ] Basic test suite (bats)
 - [ ] GitHub Actions workflow (ShellCheck)
